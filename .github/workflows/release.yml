@@ -1,0 +1,52 @@
+name: Release
+
+# 推送 v* tag 后：校验版本 → 测试 → 构建、签名并上传到草稿 Release。
+# 在 GitHub 上发布草稿后，已安装的 App 才会收到更新。
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: app/go.mod
+          cache-dependency-path: app/go.sum
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+
+      - name: 校验 tag 与 mygo.config.ts 版本一致
+        run: |
+          v=$(bun -e 'import c from "./mygo.config.ts"; console.log(c.version)')
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 mygo.config.ts 的 version v$v 不一致"
+            exit 1
+          fi
+          grep -q "^## \\[\\?$v\\]\\?" CHANGELOG.md || { echo "::error::CHANGELOG.md 缺少 ## $v 一节"; exit 1; }
+
+      - run: bun run typecheck
+      - run: bun run test
+
+      - name: 创建草稿 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --verify-tag --title "AiTrade $GITHUB_REF_NAME" --generate-notes
+          fi
+
+      - name: 构建、签名并上传
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: bun run build -- -platform darwin/arm64 -upload
