@@ -1,0 +1,17 @@
+{
+  // BTC H 方案每日信号通知。部署步骤见 README.md。
+  "name": "aitrade-notifier",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-28",
+  // UTC 00:02 = 北京时间 08:02（日线收盘后）；00:17 为重试，已处理过当天会直接跳过
+  "triggers": { "crons": ["2 0 * * *", "17 0 * * *"] },
+  "kv_namespaces": [
+    // 先执行 `npx wrangler kv namespace create STATE`，把返回的 id 填到这里
+    { "binding": "STATE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  "vars": {
+    "CAPITAL": "4000",
+    "DAILY_REPORT": "true"
+  },
+  "observability": { "enabled": true }
+}
