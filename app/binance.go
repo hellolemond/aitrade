@@ -41,7 +41,7 @@ type binanceClient struct {
 }
 
 func newBinanceClient(key, secret string, ep endpoints) *binanceClient {
-	return &binanceClient{key: key, secret: secret, ep: ep, http: &http.Client{Timeout: 15 * time.Second}}
+	return &binanceClient{key: key, secret: secret, ep: ep, http: newBinanceHTTPClient()}
 }
 
 // apiError 是币安返回的错误体，如 {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
